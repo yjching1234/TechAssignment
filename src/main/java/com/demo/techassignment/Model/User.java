@@ -1,11 +1,13 @@
 package com.demo.techassignment.Model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name="user")
@@ -34,13 +36,17 @@ public class User {
     private String contact;
 
     @Column(name = "pass", nullable = false)
+    @JsonIgnore
     @NonNull
     private String pass;
 
     @Column(name = "status" , nullable = false)
     @Enumerated(EnumType.STRING)
     @NonNull
-    private Status Status;
+    private com.demo.techassignment.Model.Enum.UserStatus UserStatus;
+
+    @OneToMany(mappedBy = "user")
+    private List<Token> tokens;
 
     @Column(name = "updatedAt", nullable = false)
     @UpdateTimestamp
@@ -62,5 +68,20 @@ public class User {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", name='" + name + '\'' +
+                ", email='" + email + '\'' +
+                ", contact='" + contact + '\'' +
+                ", UserStatus=" + UserStatus +
+                ", tokens=" + tokens +
+                ", updatedAt=" + updatedAt +
+                ", createdAt=" + createdAt +
+                '}';
     }
 }

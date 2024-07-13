@@ -20,13 +20,13 @@ public class UserController {
         this.userService = userService;
     }
 
-    @GetMapping("/test")
-    public ResponseEntity<String> test(){
-        return ResponseEntity.ok("Test ok");
-    }
+//    @GetMapping("/test")
+//    public ResponseEntity<String> test(){
+//        return ResponseEntity.ok("Test ok");
+//    }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(UserRegisterDTO userRegisterDTO){
+    public ResponseEntity<String> register(@RequestBody UserRegisterDTO userRegisterDTO){
         try {
             String response = userService.UserRegistartion(userRegisterDTO);
             return ResponseEntity.ok(response);
@@ -34,4 +34,24 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
         }
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<Object> login(@RequestBody UserRegisterDTO userRegisterDTO){
+        try{
+            return new ResponseEntity<Object>(userService.UserLogin(userRegisterDTO),HttpStatus.ACCEPTED);
+        }catch (Exception ex){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/me")
+    ResponseEntity<Object> getUser(){
+        try{
+            return new ResponseEntity<>(userService.me().toString(),HttpStatus.ACCEPTED);
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+
 }
