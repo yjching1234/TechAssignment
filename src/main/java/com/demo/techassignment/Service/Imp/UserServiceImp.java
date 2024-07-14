@@ -1,9 +1,11 @@
-package com.demo.techassignment.Service;
+package com.demo.techassignment.Service.Imp;
 
 import com.demo.techassignment.Configure.JwtTokenUtil;
+import com.demo.techassignment.DTO.UserLoginDTO;
 import com.demo.techassignment.DTO.UserRegisterDTO;
 import com.demo.techassignment.Model.Account;
 import com.demo.techassignment.Model.Enum.AccStatus;
+import com.demo.techassignment.Model.Enum.Role;
 import com.demo.techassignment.Model.Enum.UserStatus;
 import com.demo.techassignment.Model.Token;
 import com.demo.techassignment.Model.User;
@@ -11,6 +13,8 @@ import com.demo.techassignment.Repository.AccountRepository;
 import com.demo.techassignment.Repository.TokenRepository;
 import com.demo.techassignment.Repository.UserRepository;
 import java.text.DecimalFormat;
+
+import com.demo.techassignment.Service.UserService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,7 +30,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
-public class UserServiceImp implements UserService{
+public class UserServiceImp implements UserService {
 
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
@@ -89,6 +93,7 @@ public class UserServiceImp implements UserService{
             user.setUsername(userRegisterDTO.getUsername());
             user.setContact(userRegisterDTO.getContact());
             user.setPass(passwordEncoder.encode(userRegisterDTO.getPass()));
+            user.setRole(Role.USER);
             user.setUserStatus(UserStatus.ACTIVE);
 
 
@@ -104,26 +109,26 @@ public class UserServiceImp implements UserService{
     }
 
     @Override
-    public Map<String, String> UserLogin(UserRegisterDTO userRegisterDTO) throws Exception {
+    public Map<String, String> UserLogin(UserLoginDTO userLoginDTO) throws Exception {
        try {
 
            Authentication authentication = authenticationManager.authenticate(
-                   new UsernamePasswordAuthenticationToken(userRegisterDTO.getUsername(), userRegisterDTO.getPass())
+                   new UsernamePasswordAuthenticationToken(userLoginDTO.getUsername(), userLoginDTO.getPass())
            );
 
            SecurityContextHolder.getContext().setAuthentication(authentication);
 
-           UserDetails userDetails = userDetailsService.loadUserByUsername(userRegisterDTO.getUsername());
+           UserDetails userDetails = userDetailsService.loadUserByUsername(userLoginDTO.getUsername());
            String token = jwtTokenUtil.generateToken(userDetails);
 
-           User user = userRepository.findByUsername(userRegisterDTO.getUsername()).orElseThrow();
+           User user = userRepository.findByUsername(userLoginDTO.getUsername()).orElseThrow();
 
            revokeAllTokenByUser(user);
            saveUserToken(token,user);
 
            Map<String,String> response = new HashMap<>();
            response.put("token",token);
-           response.put("username",userRegisterDTO.getUsername());
+           response.put("username",userLoginDTO.getUsername());
 
            return response;
        }catch (BadCredentialsException e){
@@ -166,7 +171,9 @@ public class UserServiceImp implements UserService{
         profile.put("UpdateAt",user.getUpdatedAt().format(DateTimeFormatter.ofPattern("dd-MM-yyyy hh:mm:ss")));
         profile.put("CreatedAt",user.getCreatedAt().format(DateTimeFormatter.ofPattern("dd-MM-yyyy hh:mm:ss")));
         profile.put("accountNo",acc.getAccountNo());
-        profile.put("balance", df.format(acc.getBalance()));
+        profile.put("totalBalance", df.format(acc.getBalance() + acc.getTempBalance()));
+        profile.put("availableBalance", df.format(acc.getBalance()));
+        profile.put("tempBalance", df.format(acc.getTempBalance()));
         profile.put("accStatus",acc.getAccountStatus().toString());
 
         return profile;
@@ -188,6 +195,7 @@ public class UserServiceImp implements UserService{
         acc.setUsername(user.getUsername());
         acc.setAccountNo(newAccNo);
         acc.setBalance(0.0);
+        acc.setTempBalance(0.0);
         acc.setAccountStatus(AccStatus.ACTIVE);
 
         accountRepository.save(acc);

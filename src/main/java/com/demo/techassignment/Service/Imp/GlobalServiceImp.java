@@ -1,14 +1,15 @@
-package com.demo.techassignment.Service;
+package com.demo.techassignment.Service.Imp;
 
 import com.demo.techassignment.Model.Sequence;
 import com.demo.techassignment.Repository.SequenceRepository;
+import com.demo.techassignment.Service.GlobalService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
-public class GlobalServiceImp implements GlobalService{
+public class GlobalServiceImp implements GlobalService {
 
     @Autowired
     private SequenceRepository sequenceRepository;

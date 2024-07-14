@@ -6,4 +6,6 @@ import java.util.Map;
 
 public interface TransactionService {
     Map<String, String> makeTransaction(TransactionDTO transactionDTO) throws Exception;
+
+    String manageTransaction();
 }

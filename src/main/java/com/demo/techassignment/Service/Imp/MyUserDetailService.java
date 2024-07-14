@@ -1,4 +1,4 @@
-package com.demo.techassignment.Service;
+package com.demo.techassignment.Service.Imp;
 
 import com.demo.techassignment.Model.User;
 import com.demo.techassignment.Repository.UserRepository;
@@ -25,7 +25,7 @@ public class MyUserDetailService implements UserDetailsService {
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                     .username(username)
                     .password(user.get().getPass())
-                    .roles("USER")
+                    .roles(String.valueOf(user.get().getRole()))
                     .build();
 
             return userDetails;

@@ -1,4 +1,4 @@
-package com.demo.techassignment.Service;
+package com.demo.techassignment.Service.Imp;
 
 import com.demo.techassignment.DTO.TransactionDTO;
 import com.demo.techassignment.Model.Account;
@@ -9,6 +9,9 @@ import com.demo.techassignment.Model.Transaction;
 import com.demo.techassignment.Model.User;
 import com.demo.techassignment.Repository.AccountRepository;
 import com.demo.techassignment.Repository.TransactionReposiotry;
+import com.demo.techassignment.Service.GlobalService;
+import com.demo.techassignment.Service.TransactionService;
+import com.demo.techassignment.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
@@ -21,7 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
-public class TransactionServiceImp implements TransactionService{
+public class TransactionServiceImp implements TransactionService {
 
     private final TransactionReposiotry transactionReposiotry;
     private final AccountRepository accountRepository;
@@ -45,7 +48,7 @@ public class TransactionServiceImp implements TransactionService{
             errors.put("transactionType","Invalid transaction type");
         }
 
-        if(trnType == TrnType.TRANSFER && transactionDTO.getAccountTo().isEmpty()){
+        if((trnType == TrnType.TRANSFER || trnType == TrnType.DUITNOW) && transactionDTO.getAccountTo().isEmpty()){
             errors.put("accountTo","Target account is missing");
         }
 
@@ -81,11 +84,10 @@ public class TransactionServiceImp implements TransactionService{
             trn.setUser(userService.me());
             trn.setAmount(amt);
             trn.setDescription(transactionDTO.getDescription());
-            trn.setTransactionStatus(TrnStatus.SUCCESS);
+            trn.setTransactionStatus(TrnStatus.COMPLETED);
             trn.setTransactionDateTime(LocalDateTime.now());
 
-            transactionReposiotry.save(trn);
-            accountRepository.save(acc);
+
 
 
             switch (trn.getTransactionType()) {
@@ -99,7 +101,7 @@ public class TransactionServiceImp implements TransactionService{
                     acc.setBalance(subtotal);
                     break;
                 }
-                case TrnType.TRANSFER -> {
+                case TrnType.DUITNOW -> {
                     Optional<Account> findTargetAcc = accountRepository.findByAccountNo(transactionDTO.getAccountTo());
                     if(findTargetAcc.isEmpty() || findTargetAcc.get().getAccountStatus() != AccStatus.ACTIVE){
                         throw new Exception("Target account not exist or not active");
@@ -114,17 +116,41 @@ public class TransactionServiceImp implements TransactionService{
                     trn.setAccountTo(targetAcc.getAccountNo());
                     accountRepository.save(targetAcc);
                 }
+                case TrnType.TRANSFER -> {
+                    Optional<Account> findTargetAcc = accountRepository.findByAccountNo(transactionDTO.getAccountTo());
+                    if(findTargetAcc.isEmpty() || findTargetAcc.get().getAccountStatus() != AccStatus.ACTIVE){
+                        throw new Exception("Target account not exist or not active");
+                    }
+                    targetAcc = findTargetAcc.get();
+
+                    double subtotal = acc.getBalance() - amt;
+                    acc.setBalance(subtotal);
+                    double targetSubtotal = targetAcc.getBalance() + amt;
+                    targetAcc.setTempBalance(targetSubtotal);
+
+                    trn.setAccountTo(targetAcc.getAccountNo());
+                    trn.setTransactionStatus(TrnStatus.SUCCESS);
+                    accountRepository.save(targetAcc);
+                }
             }
 
+            transactionReposiotry.save(trn);
+            accountRepository.save(acc);
 
-
+            return Map.of("msg", "Success", "trnId", trn.getTranId());
         }catch (Exception e){
             throw new Exception(e.getMessage());
         }
 
 
-        return Collections.singletonMap("msg", "Success");
+
     }
+
+    @Override
+    public String manageTransaction() {
+        return null;
+    }
+
 
     private String generateTransactionId(TrnType type) throws Exception {
         String datePrefix = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
@@ -147,7 +173,7 @@ public class TransactionServiceImp implements TransactionService{
         Account acc = findAcc.get();
 
         if(acc.getAccountStatus() != AccStatus.ACTIVE){
-            throw new Exception("Your account number is " + AccStatus.ACTIVE.toString()
+            throw new Exception("Your account number is " + acc.getAccountStatus()
             + " due to "+ acc.getRemarks()
             + " Please contact support!");
         }

@@ -1,21 +1,18 @@
 package com.demo.techassignment.Configure;
 
-import com.demo.techassignment.Service.MyUserDetailService;
+import com.demo.techassignment.Service.Imp.MyUserDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -43,10 +40,9 @@ public class SecurityConfiguration{
                 .authorizeHttpRequests(
 
                 authorizeHttpRequest ->{
-                    authorizeHttpRequest.requestMatchers("/api/").permitAll();
                     authorizeHttpRequest.requestMatchers("/api/user/register","/api/user/login").permitAll();
                     authorizeHttpRequest.requestMatchers("/api/transaction/**").hasRole("USER");
-                    authorizeHttpRequest.anyRequest().authenticated();
+                    authorizeHttpRequest.anyRequest().permitAll();
                 }
         ).userDetailsService(userDetailService)
                 .exceptionHandling(e->{

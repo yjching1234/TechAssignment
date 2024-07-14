@@ -33,6 +33,9 @@ public class Account {
     @Column(name = "balance", nullable = false)
     private Double balance;
 
+    @Column(nullable = false)
+    private Double tempBalance;
+
 //    @Column(name = "expiryDate", nullable = false)
 //    private Date expiryDate;
 

@@ -1,24 +1,27 @@
 package com.demo.techassignment.Controller;
 
+import com.demo.techassignment.DTO.UserLoginDTO;
 import com.demo.techassignment.DTO.UserRegisterDTO;
 import com.demo.techassignment.Service.UserService;
-import com.demo.techassignment.Service.UserServiceImp;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
 
-    private final UserService userService;
-
     @Autowired
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+    private UserService userService;
+
+
 
 //    @GetMapping("/test")
 //    public ResponseEntity<String> test(){
@@ -36,11 +39,12 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Object> login(@RequestBody UserRegisterDTO userRegisterDTO){
-        try{
-            return new ResponseEntity<Object>(userService.UserLogin(userRegisterDTO),HttpStatus.ACCEPTED);
-        }catch (Exception ex){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
+    public ResponseEntity<Object> login(@RequestBody @Valid UserLoginDTO userLoginDTO){
+        try {
+
+            return new ResponseEntity<>(userService.UserLogin(userLoginDTO), HttpStatus.ACCEPTED);
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", ex.getMessage()));
         }
     }
 
@@ -52,6 +56,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
+
 
 
 }
