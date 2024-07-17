@@ -1,5 +1,6 @@
 package com.demo.techassignment.Service.Imp;
 
+import com.demo.techassignment.Model.Enum.UserStatus;
 import com.demo.techassignment.Model.User;
 import com.demo.techassignment.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class MyUserDetailService implements UserDetailsService {
         Optional<User> findUser = userRepository.findByUsername(username);
         if(findUser.isPresent()){
             User user = findUser.get();
+            if (user.getUserStatus() == UserStatus.INACTIVE){
+                throw new UsernameNotFoundException("USER not active");
+            }
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                     .username(username)
                     .password(user.getPass())

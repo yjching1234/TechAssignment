@@ -8,6 +8,7 @@ import com.demo.techassignment.DTO.UserRegisterDTO;
 import com.demo.techassignment.Model.Account;
 import com.demo.techassignment.Model.Enum.AccStatus;
 import com.demo.techassignment.Model.Enum.Role;
+import com.demo.techassignment.Model.Enum.TrnStatus;
 import com.demo.techassignment.Model.Enum.UserStatus;
 import com.demo.techassignment.Model.Token;
 import com.demo.techassignment.Model.User;
@@ -178,7 +179,8 @@ public class UserServiceImp implements UserService {
     @Override
     public Map<String, String> getUserProfile() {
         User user = me();
-        Account acc = accountRepository.findByUsername(user.getUsername()).orElseThrow();
+
+
 
         DecimalFormat df = new DecimalFormat("#,##0.00");
 
@@ -187,13 +189,17 @@ public class UserServiceImp implements UserService {
         profile.put("username",user.getUsername());
         profile.put("email",user.getEmail());
         profile.put("Contact",user.getContact());
-        profile.put("UpdateAt",user.getUpdatedAt().format(DateTimeFormatter.ofPattern("dd-MM-yyyy hh:mm:ss")));
-        profile.put("CreatedAt",user.getCreatedAt().format(DateTimeFormatter.ofPattern("dd-MM-yyyy hh:mm:ss")));
-        profile.put("accountNo",acc.getAccountNo());
-        profile.put("totalBalance", df.format(acc.getBalance() + acc.getTempBalance()));
-        profile.put("availableBalance", df.format(acc.getBalance()));
-        profile.put("tempBalance", df.format(acc.getTempBalance()));
-        profile.put("accStatus",acc.getAccountStatus().toString());
+        profile.put("Role", user.getRole().toString());
+
+        if (user.getRole() == Role.USER){
+            Account acc = accountRepository.findByUsername(user.getUsername()).orElseThrow();
+            profile.put("accountNo",acc.getAccountNo());
+            profile.put("totalBalance", df.format(acc.getBalance() + acc.getTempBalance()));
+            profile.put("availableBalance", df.format(acc.getBalance()));
+            profile.put("tempBalance", df.format(acc.getTempBalance()));
+            profile.put("accStatus",acc.getAccountStatus().toString());
+        }
+
 
         return profile;
     }
@@ -265,9 +271,57 @@ public class UserServiceImp implements UserService {
     @Override
     public Map<String, Object> editUser(EditUserDTO editUserDTO) throws Exception {
         try{
-            User user = me();
-
             Map<String,String> errors = new HashMap<>();
+            User user = new User();
+            User currUser = me();
+            Role role = null;
+            UserStatus userStatus = null;
+
+            if(editUserDTO.getUsername().equals("admin")){
+                errors.put("role","Super admin not allow to edit");
+            }
+
+            if(currUser.getRole() == Role.USER){
+                user = currUser;
+            }else{
+                if(editUserDTO.getUsername() == null || editUserDTO.getUsername().isEmpty()){
+                    errors.put("email","Username is missing");
+                }else {
+                    Optional<User> findUser = userRepository.findByUsername(editUserDTO.getUsername());
+                    if(findUser.isEmpty()){
+                        errors.put("username","Invalid username");
+                    }else if (findUser.get().getRole() != Role.USER && me().getRole() != Role.ADMIN) {
+                        errors.put("role","You cannot edit this user.");
+                    }else{
+                        user = findUser.get();
+                    }
+                }
+
+            }
+
+            if(currUser.getRole() != Role.USER){
+                if (editUserDTO.getAccStatus() != null && editUserDTO.getAccStatus() != 0){
+                    userStatus = UserStatus.fromValue(editUserDTO.getAccStatus());
+                    if (userStatus == null){
+                        errors.put("accStatus","Invalid status");
+                    }
+                }
+            }
+
+            if(currUser.getRole() == Role.ADMIN){
+                if (editUserDTO.getRole() != null && editUserDTO.getRole() != 0){
+                    role = Role.fromValue(editUserDTO.getRole());
+                    if(role == null){
+                        errors.put("role", "Invalid Role");
+                    }
+                }
+            }
+
+            if(!errors.isEmpty()){
+                return Map.of("errors",errors);
+            }
+
+
             Optional<User> existingContact = userRepository.findByContact(editUserDTO.getContact());
             if (existingContact.isPresent() && !existingContact.get().getUsername().equals(user.getUsername())) {
                 errors.put("contact","This contact number is already in use.");
@@ -286,6 +340,12 @@ public class UserServiceImp implements UserService {
             user.setContact(editUserDTO.getContact());
             user.setEmail(editUserDTO.getEmail());
             user.setPass(passwordEncoder.encode(editUserDTO.getPass()));
+            if (role != null){
+                user.setRole(role);
+            }
+            if (userStatus != null){
+                user.setUserStatus(userStatus);
+            }
 
             userRepository.save(user);
 

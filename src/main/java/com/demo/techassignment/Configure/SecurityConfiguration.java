@@ -42,6 +42,7 @@ public class SecurityConfiguration{
 
                 authorizeHttpRequest ->{
                     authorizeHttpRequest.requestMatchers("/api/user/register","/api/user/login", "/api/user/demo").permitAll();
+                    authorizeHttpRequest.requestMatchers("/api/transaction/manageAcc").hasAnyRole("ADMIN","STAFF");
                     authorizeHttpRequest.requestMatchers("/api/transaction/trnApproval", "/api/transaction/getTrnHis").hasAnyRole("USER","STAFF","ADMIN");
                     authorizeHttpRequest.requestMatchers("/api/transaction/**").hasRole("USER");
                     authorizeHttpRequest.requestMatchers("/api/user/createStaff").hasRole("ADMIN");

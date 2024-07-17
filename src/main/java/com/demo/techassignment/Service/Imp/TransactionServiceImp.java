@@ -1,9 +1,6 @@
 package com.demo.techassignment.Service.Imp;
 
-import com.demo.techassignment.DTO.ManageTransactionDTO;
-import com.demo.techassignment.DTO.RtnTrnHisDTO;
-import com.demo.techassignment.DTO.TransactionDTO;
-import com.demo.techassignment.DTO.TrnHistoryDTO;
+import com.demo.techassignment.DTO.*;
 import com.demo.techassignment.Model.Account;
 import com.demo.techassignment.Model.Enum.AccStatus;
 import com.demo.techassignment.Model.Enum.Role;
@@ -25,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -96,6 +92,7 @@ public class TransactionServiceImp implements TransactionService {
             trn.setDescription(transactionDTO.getDescription());
             trn.setTransactionStatus(TrnStatus.COMPLETED);
             trn.setTransactionDateTime(LocalDateTime.now());
+            trn.setActionBy(userService.me());
 
 
 
@@ -350,6 +347,43 @@ public class TransactionServiceImp implements TransactionService {
             );
 
             return Map.of("data", response);
+        }catch (Exception e){
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    @Override
+    public Map<String, Object> manageAcc(ManageAccountDTO manageAccountDTO) throws Exception {
+        try{
+            Map<String,String> errors = new HashMap<>();
+
+            AccStatus accStatus = AccStatus.fromValue(manageAccountDTO.getAccStatus());
+            if (accStatus == null){
+                errors.put("accStatus","Invalid Status");
+            }
+
+            Optional<Account> findAcc = accountRepository.findByAccountNo(manageAccountDTO.getAccNo());
+            if(findAcc.isEmpty()){
+                errors.put("accNo","Invalid account no");
+            }
+
+            if(!errors.isEmpty()){
+                return Map.of("errors",errors);
+            }
+
+            Account acc = findAcc.get();
+            acc.setAccountStatus(accStatus);
+            String remarks = "";
+            if (acc.getRemarks() == null){
+                remarks = manageAccountDTO.getRemarks();
+            }else{
+                remarks = acc.getRemarks() + "|" + manageAccountDTO.getRemarks();
+            }
+            acc.setRemarks(remarks);
+
+            accountRepository.save(acc);
+
+            return Map.of("msg","Account Updated");
         }catch (Exception e){
             throw new Exception(e.getMessage());
         }

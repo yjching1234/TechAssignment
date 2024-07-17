@@ -2,13 +2,18 @@ package com.demo.techassignment.Service.Imp;
 
 import com.demo.techassignment.DTO.StaffCreationDTO;
 import com.demo.techassignment.DTO.UserRegisterDTO;
+import com.demo.techassignment.Model.Enum.Role;
+import com.demo.techassignment.Model.Enum.UserStatus;
 import com.demo.techassignment.Model.Sequence;
 import com.demo.techassignment.Model.User;
 import com.demo.techassignment.Repository.SequenceRepository;
+import com.demo.techassignment.Repository.UserRepository;
 import com.demo.techassignment.Service.GlobalService;
 import com.demo.techassignment.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -21,9 +26,14 @@ public class GlobalServiceImp implements GlobalService {
 
 
     private final UserService userService;
+    private final UserRepository userRepository;
 
-    public GlobalServiceImp(@Lazy UserService userService) {
+
+    private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    public GlobalServiceImp(@Lazy UserService userService, @Lazy UserRepository userRepository) {
         this.userService = userService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -54,14 +64,23 @@ public class GlobalServiceImp implements GlobalService {
     @Override
     public String dummyData() throws Exception {
       try{
-          UserRegisterDTO userRegisterDTO = new UserRegisterDTO("user1","user1","uer1@gmail.com","012-00199921","Test@9999");
+          UserRegisterDTO userRegisterDTO = new UserRegisterDTO("user1","user1","user1@gmail.com","012-00199921","Test@9999");
           userService.UserRegistartion(userRegisterDTO);
-          UserRegisterDTO userRegisterDTO2 = new UserRegisterDTO("user2","user2","uer2@gmail.com","012-00199922","Test@9999");
+          UserRegisterDTO userRegisterDTO2 = new UserRegisterDTO("user2","user2","user2@gmail.com","012-00199922","Test@9999");
           userService.UserRegistartion(userRegisterDTO2);
-          UserRegisterDTO userRegisterDTO3 = new UserRegisterDTO("user3","user3","uer3@gmail.com","012-00199923","Test@9999");
+          UserRegisterDTO userRegisterDTO3 = new UserRegisterDTO("user3","user3","user3@gmail.com","012-00199923","Test@9999");
           userService.UserRegistartion(userRegisterDTO3);
-          UserRegisterDTO userRegisterDTO4 = new UserRegisterDTO("admin1","admin1","ADMIN@gmail.com","012-9928883","Test@9999");
-          userService.UserRegistartion(userRegisterDTO4);
+
+          User admin = new User();
+          admin.setUsername("admin");
+          admin.setEmail("admin@gmail.com");
+          admin.setContact("012-8457781");
+          admin.setName("admin");
+          admin.setUserStatus(UserStatus.ACTIVE);
+          admin.setRole(Role.ADMIN);
+          admin.setPass(passwordEncoder.encode("Test@9999"));
+          userRepository.save(admin);
+
           return "Success";
       }catch (Exception e){
           throw new Exception(e.getMessage());

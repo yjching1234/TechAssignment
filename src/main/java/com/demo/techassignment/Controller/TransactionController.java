@@ -1,5 +1,6 @@
 package com.demo.techassignment.Controller;
 
+import com.demo.techassignment.DTO.ManageAccountDTO;
 import com.demo.techassignment.DTO.ManageTransactionDTO;
 import com.demo.techassignment.DTO.TransactionDTO;
 import com.demo.techassignment.DTO.TrnHistoryDTO;
@@ -60,6 +61,21 @@ public class TransactionController {
     public  ResponseEntity<Object> getTransactionHistory(@RequestBody @Valid TrnHistoryDTO trnHistoryDTO){
         try {
             Map<String,Object> response = transactionService.getTransactionHistory(trnHistoryDTO);
+
+            if (response.containsKey("errors")){
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+            }
+            return ResponseEntity.ok(response);
+
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("errors",e.getMessage()));
+        }
+    }
+
+    @PostMapping("/manageAcc")
+    public ResponseEntity<Object> manageAccount(@RequestBody @Valid ManageAccountDTO manageAccountDTO){
+        try {
+            Map<String,Object> response = transactionService.manageAcc(manageAccountDTO);
 
             if (response.containsKey("errors")){
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
