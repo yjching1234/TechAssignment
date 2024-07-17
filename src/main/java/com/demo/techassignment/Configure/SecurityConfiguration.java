@@ -1,5 +1,6 @@
 package com.demo.techassignment.Configure;
 
+import com.demo.techassignment.Model.Enum.Role;
 import com.demo.techassignment.Service.Imp.MyUserDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -40,9 +41,11 @@ public class SecurityConfiguration{
                 .authorizeHttpRequests(
 
                 authorizeHttpRequest ->{
-                    authorizeHttpRequest.requestMatchers("/api/user/register","/api/user/login").permitAll();
+                    authorizeHttpRequest.requestMatchers("/api/user/register","/api/user/login", "/api/user/demo").permitAll();
+                    authorizeHttpRequest.requestMatchers("/api/transaction/trnApproval", "/api/transaction/getTrnHis").hasAnyRole("USER","STAFF","ADMIN");
                     authorizeHttpRequest.requestMatchers("/api/transaction/**").hasRole("USER");
-                    authorizeHttpRequest.anyRequest().permitAll();
+                    authorizeHttpRequest.requestMatchers("/api/user/createStaff").hasRole("ADMIN");
+                    authorizeHttpRequest.anyRequest().authenticated();
                 }
         ).userDetailsService(userDetailService)
                 .exceptionHandling(e->{

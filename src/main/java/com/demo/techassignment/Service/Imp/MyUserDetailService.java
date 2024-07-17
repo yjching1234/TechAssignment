@@ -20,12 +20,13 @@ public class MyUserDetailService implements UserDetailsService {
     private PasswordEncoder passwordEncoder;
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<User> user = userRepository.findByUsername(username);
-        if(user.isPresent()){
+        Optional<User> findUser = userRepository.findByUsername(username);
+        if(findUser.isPresent()){
+            User user = findUser.get();
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                     .username(username)
-                    .password(user.get().getPass())
-                    .roles(String.valueOf(user.get().getRole()))
+                    .password(user.getPass())
+                    .roles(user.getRole().toString())
                     .build();
 
             return userDetails;

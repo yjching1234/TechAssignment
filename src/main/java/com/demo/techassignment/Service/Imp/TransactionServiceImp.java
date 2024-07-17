@@ -1,8 +1,12 @@
 package com.demo.techassignment.Service.Imp;
 
+import com.demo.techassignment.DTO.ManageTransactionDTO;
+import com.demo.techassignment.DTO.RtnTrnHisDTO;
 import com.demo.techassignment.DTO.TransactionDTO;
+import com.demo.techassignment.DTO.TrnHistoryDTO;
 import com.demo.techassignment.Model.Account;
 import com.demo.techassignment.Model.Enum.AccStatus;
+import com.demo.techassignment.Model.Enum.Role;
 import com.demo.techassignment.Model.Enum.TrnStatus;
 import com.demo.techassignment.Model.Enum.TrnType;
 import com.demo.techassignment.Model.Transaction;
@@ -12,35 +16,41 @@ import com.demo.techassignment.Repository.TransactionReposiotry;
 import com.demo.techassignment.Service.GlobalService;
 import com.demo.techassignment.Service.TransactionService;
 import com.demo.techassignment.Service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.parameters.P;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class TransactionServiceImp implements TransactionService {
 
     private final TransactionReposiotry transactionReposiotry;
     private final AccountRepository accountRepository;
-    @Autowired
-    private UserService userService;
-    @Autowired
-    private GlobalService globalService;
 
-    public TransactionServiceImp(TransactionReposiotry transactionReposiotry, AccountRepository accountRepository) {
+    private final UserService userService;
+
+    private final GlobalService globalService;
+
+    public TransactionServiceImp(TransactionReposiotry transactionReposiotry, AccountRepository accountRepository, UserService userService, GlobalService globalService) {
         this.transactionReposiotry = transactionReposiotry;
         this.accountRepository = accountRepository;
+        this.userService = userService;
+        this.globalService = globalService;
     }
 
     @Override
     @Transactional(rollbackFor = {Exception.class})
-    public Map<String, String> makeTransaction(TransactionDTO transactionDTO) throws Exception {
+    public Map<String, Object> makeTransaction(TransactionDTO transactionDTO) throws Exception {
         Map<String,String> errors = new HashMap<>();
 
         TrnType trnType = TrnType.fromValue(transactionDTO.getTransactionType());
@@ -61,7 +71,7 @@ public class TransactionServiceImp implements TransactionService {
         }
 
         if(!errors.isEmpty()){
-            return errors;
+            return Map.of("errors",errors);
         }
 
         try {
@@ -74,7 +84,7 @@ public class TransactionServiceImp implements TransactionService {
                 throw new Exception("Not enough balance");
             }
 
-            if (acc.getAccountNo().equals(targetAcc.getAccountNo())){
+            if (acc.getAccountNo().equals(transactionDTO.getAccountTo())){
                 throw new Exception("Source account cannot same as target account");
             }
 
@@ -125,11 +135,11 @@ public class TransactionServiceImp implements TransactionService {
 
                     double subtotal = acc.getBalance() - amt;
                     acc.setBalance(subtotal);
-                    double targetSubtotal = targetAcc.getBalance() + amt;
+                    double targetSubtotal = targetAcc.getTempBalance() + amt;
                     targetAcc.setTempBalance(targetSubtotal);
 
                     trn.setAccountTo(targetAcc.getAccountNo());
-                    trn.setTransactionStatus(TrnStatus.SUCCESS);
+                    trn.setTransactionStatus(TrnStatus.PENDING);
                     accountRepository.save(targetAcc);
                 }
             }
@@ -137,7 +147,17 @@ public class TransactionServiceImp implements TransactionService {
             transactionReposiotry.save(trn);
             accountRepository.save(acc);
 
-            return Map.of("msg", "Success", "trnId", trn.getTranId());
+            Map<String,String> response = new HashMap<>();
+            response.put("trnId", trn.getTranId());
+            response.put("trnDesc", trn.getDescription());
+            response.put("trnDT",trn.getTransactionDateTime().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss a")));
+            response.put("trnStatus", trn.getTransactionStatus().name());
+            response.put("trnType", trn.getTransactionType().name());
+            if (trn.getTransactionStatus() == TrnStatus.PENDING){
+                response.put("info","You can do cancellation for this transaction");
+            }
+
+            return Map.of("msg", "Success", "trn", response);
         }catch (Exception e){
             throw new Exception(e.getMessage());
         }
@@ -147,8 +167,192 @@ public class TransactionServiceImp implements TransactionService {
     }
 
     @Override
-    public String manageTransaction() {
-        return null;
+    public Map<String, Object> manageTransaction(ManageTransactionDTO manageTransactionDTO) {
+        Map<String,String> response = new HashMap<>();
+        User me = userService.me();
+
+        Optional<Transaction> findTrn = transactionReposiotry.findByTranId(manageTransactionDTO.getTrnId());
+        TrnStatus trnStatus = TrnStatus.fromValue(manageTransactionDTO.getTrnStatus());
+
+        if(findTrn.isEmpty()){
+            response.put("tarId","Invalid transaction Id");
+        }
+
+        if(trnStatus == null){
+            response.put("trnStatus","Invalid transaction status");
+        }else if (me.getRole() == Role.USER && trnStatus != TrnStatus.CANCELED){
+            response.put("trnStatus","You can do cancellation only.");
+        } else if (trnStatus != TrnStatus.COMPLETED && trnStatus != TrnStatus.CANCELED){
+            response.put("trnStatus","The status should be COMPLETED or CANCELED only.");
+        }
+
+
+        Transaction trn = findTrn.get();
+
+        if (trn.getTransactionStatus() != TrnStatus.PENDING){
+            response.put("trnStatus","No action are allow.");
+        }
+
+        trn.setTransactionStatus(trnStatus);
+        trn.setRemarks(manageTransactionDTO.getRemarks());
+        trn.setActionBy(me);
+
+        Optional<Account> findSrcAcc = accountRepository.findByAccountNo(trn.getAccountFrom());
+        Optional<Account> findTargetAcc = accountRepository.findByAccountNo(trn.getAccountTo());
+
+        if(findSrcAcc.isEmpty()){
+            response.put("accountTo","Target account not found");
+        }
+
+        if (findTargetAcc.isEmpty()){
+            response.put("accountTo","Target account not found");
+        }
+
+        if (!response.isEmpty()){
+            return Map.of("errors",response);
+        }
+
+        Account srcAcc = findSrcAcc.get();
+        Account targetAcc = findTargetAcc.get();
+
+        switch (trnStatus){
+            case TrnStatus.COMPLETED -> {
+                double tempBalance = targetAcc.getTempBalance();
+                double balance  = targetAcc.getBalance();
+                double trnAmt   = trn.getAmount();
+
+                tempBalance = tempBalance - trnAmt;
+                balance = balance + trnAmt;
+
+                targetAcc.setTempBalance(tempBalance);
+                targetAcc.setBalance(balance);
+                accountRepository.save(targetAcc);
+            }
+            case TrnStatus.CANCELED -> {
+                double tempBalance = targetAcc.getTempBalance();
+                double balance  = srcAcc.getBalance();
+                double trnAmt   = trn.getAmount();
+
+                tempBalance = tempBalance - trnAmt;
+                balance = balance + trnAmt;
+
+                targetAcc.setTempBalance(tempBalance);
+                srcAcc.setBalance(balance);
+
+                accountRepository.save(targetAcc);
+                accountRepository.save(srcAcc);
+            }
+        }
+        transactionReposiotry.save(trn);
+
+        return Map.of("msg","success");
+    }
+
+    @Override
+    public Map<String, Object> getTransactionHistory(TrnHistoryDTO trnHistoryDTO) throws Exception {
+        try{
+            Map<String, String> errors = new HashMap<>();
+            User user = userService.me();
+            Integer page = trnHistoryDTO.getPage() != null ? trnHistoryDTO.getPage() : 0;
+
+            Sort.Direction direction = "A".equals(trnHistoryDTO.getSort()) ? Sort.Direction.ASC : Sort.Direction.DESC;
+            PageRequest pageRequest = PageRequest.of(page, 10, Sort.by(direction, "transactionDateTime"));
+
+            TrnStatus trnStatus = null;
+            if (trnHistoryDTO.getTrnStatus() != null && trnHistoryDTO.getTrnStatus() != 0) {
+                try {
+                    trnStatus = TrnStatus.fromValue(trnHistoryDTO.getTrnStatus());
+                } catch (IllegalArgumentException e) {
+                    errors.put("trnStatus", "Invalid transaction status");
+                }
+            }
+
+            TrnType trnType = null;
+            if (trnHistoryDTO.getTrnType() != null && trnHistoryDTO.getTrnType() != 0) {
+                try {
+                    trnType = TrnType.fromValue(trnHistoryDTO.getTrnType());
+                } catch (IllegalArgumentException e) {
+                    errors.put("trnType", "Invalid transaction type");
+                }
+            }
+
+            if (trnHistoryDTO.getTrnId() != null && trnHistoryDTO.getTrnId().isEmpty()) {
+                trnHistoryDTO.setTrnId(null);
+            }
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+            LocalDateTime dateFrom = null;
+            LocalDateTime dateTo = null;
+            if (trnHistoryDTO.getDateFrom() != null && !trnHistoryDTO.getDateFrom().isEmpty()) {
+                try {
+                    dateFrom = LocalDate.parse(trnHistoryDTO.getDateFrom(), formatter).atStartOfDay();
+                } catch (DateTimeParseException e) {
+                    errors.put("dateFrom","Invalid dateFrom format. Expected format: yyyy-MM-dd");
+                }
+            }
+
+            if (trnHistoryDTO.getDateTo() != null && !trnHistoryDTO.getDateTo().isEmpty()) {
+                try {
+                    dateTo = LocalDate.parse(trnHistoryDTO.getDateTo(), formatter).atTime(23,59,59);
+                } catch (DateTimeParseException e) {
+                    errors.put("dateTo","Invalid dateTo format. Expected format: yyyy-MM-dd");
+                }
+            }
+
+
+
+            if (!errors.isEmpty()) {
+                return Map.of("errors", errors);
+            }
+
+
+            Integer userId = user.getId();
+            if (user.getRole() != Role.USER){
+                if (trnHistoryDTO.getUserId() != 0){
+                    userId = trnHistoryDTO.getUserId();
+                }else {
+                    userId = null;
+                }
+            }
+            String trnId = trnHistoryDTO.getTrnId();
+
+            Page<Transaction> findTrn = transactionReposiotry.findTransactionByFilters(
+                    userId,
+                    trnId,
+                    trnStatus,
+                    trnType,
+                    dateFrom,
+                    dateTo,
+                    pageRequest);
+
+            List<RtnTrnHisDTO> trn = findTrn.getContent().stream().map(t -> {
+                RtnTrnHisDTO rtnTrnHisDTO = new RtnTrnHisDTO();
+                rtnTrnHisDTO.setUsername(t.getUser().getUsername());
+                rtnTrnHisDTO.setTrnId(t.getTranId());
+                rtnTrnHisDTO.setTransactionDateTime(t.getTransactionDateTime().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss a")));
+                rtnTrnHisDTO.setAccountFrom(t.getAccountFrom());
+                rtnTrnHisDTO.setAccountTo(t.getAccountTo());
+                rtnTrnHisDTO.setAmount(t.getAmount());
+                rtnTrnHisDTO.setDescription(t.getDescription());
+                rtnTrnHisDTO.setRemarks(t.getRemarks());
+                rtnTrnHisDTO.setTrnStatus(t.getTransactionStatus().name());
+                rtnTrnHisDTO.setTrnType(t.getTransactionType().name());
+                return rtnTrnHisDTO;
+            }).collect(Collectors.toList());
+
+            Page<RtnTrnHisDTO> response = new PageImpl<>(trn,
+                    PageRequest.of(
+                            pageRequest.getPageNumber(),
+                            pageRequest.getPageSize(),
+                            pageRequest.getSort()
+                    ), findTrn.getTotalElements()
+            );
+
+            return Map.of("data", response);
+        }catch (Exception e){
+            throw new Exception(e.getMessage());
+        }
     }
 
 

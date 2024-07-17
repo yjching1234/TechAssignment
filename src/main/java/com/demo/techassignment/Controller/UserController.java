@@ -1,10 +1,14 @@
 package com.demo.techassignment.Controller;
 
+import com.demo.techassignment.DTO.EditUserDTO;
+import com.demo.techassignment.DTO.StaffCreationDTO;
 import com.demo.techassignment.DTO.UserLoginDTO;
 import com.demo.techassignment.DTO.UserRegisterDTO;
+import com.demo.techassignment.Service.GlobalService;
 import com.demo.techassignment.Service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -18,9 +22,13 @@ import java.util.Map;
 @RequestMapping("/api/user")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
 
+    private final UserService userService;
+
+
+    public UserController(@Lazy UserService userService) {
+        this.userService = userService;
+    }
 
 
 //    @GetMapping("/test")
@@ -29,7 +37,7 @@ public class UserController {
 //    }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody UserRegisterDTO userRegisterDTO){
+    public ResponseEntity<String> register(@RequestBody @Valid UserRegisterDTO userRegisterDTO){
         try {
             String response = userService.UserRegistartion(userRegisterDTO);
             return ResponseEntity.ok(response);
@@ -57,6 +65,45 @@ public class UserController {
         }
     }
 
+    @GetMapping("/demo")
+    ResponseEntity<Object> dummy(){
+        try{
+            return ResponseEntity.ok(Map.of("msg",userService.createDummyData()));
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errors",e.getMessage()));
+        }
+    }
+
+    @PostMapping("/createStaff")
+    ResponseEntity<Object> staffCreation(@RequestBody @Valid StaffCreationDTO staffCreationDTO){
+        try {
+            return ResponseEntity.ok(userService.staffCreation(staffCreationDTO));
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errors",e.getMessage()));
+        }
+    }
+
+    @GetMapping("/logout")
+    ResponseEntity<Object> logout(){
+        try {
+            return ResponseEntity.ok(userService.Logout());
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errors",e.getMessage()));
+        }
+    }
+
+    @PostMapping("/editUser")
+    ResponseEntity<Object> userUpdate(@RequestBody @Valid EditUserDTO editUserDTO){
+        try {
+            Map<String, Object> response = userService.editUser(editUserDTO);
+            if(response.containsKey("errors")){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+            return ResponseEntity.ok(response);
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errors",e.getMessage()));
+        }
+    }
 
 
 }

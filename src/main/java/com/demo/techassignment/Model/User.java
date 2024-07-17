@@ -55,6 +55,9 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<Transaction> transactions;
 
+    @OneToMany(mappedBy = "actionBy")
+    private List<Transaction> actionBy;
+
     @Column(name = "updatedAt", nullable = false)
     @UpdateTimestamp
     private LocalDateTime updatedAt;

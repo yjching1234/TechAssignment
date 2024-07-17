@@ -53,6 +53,10 @@ public class Transaction {
     @JoinColumn(name = "user")
     private User user;
 
+    @ManyToOne
+    @JoinColumn(name = "actionBy")
+    private User actionBy;
+
     @Column(name = "transactionType", nullable = false)
     @Enumerated(EnumType.STRING)
     private TrnType transactionType;

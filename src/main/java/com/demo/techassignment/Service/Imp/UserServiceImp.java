@@ -1,6 +1,8 @@
 package com.demo.techassignment.Service.Imp;
 
 import com.demo.techassignment.Configure.JwtTokenUtil;
+import com.demo.techassignment.DTO.EditUserDTO;
+import com.demo.techassignment.DTO.StaffCreationDTO;
 import com.demo.techassignment.DTO.UserLoginDTO;
 import com.demo.techassignment.DTO.UserRegisterDTO;
 import com.demo.techassignment.Model.Account;
@@ -14,7 +16,10 @@ import com.demo.techassignment.Repository.TokenRepository;
 import com.demo.techassignment.Repository.UserRepository;
 import java.text.DecimalFormat;
 
+import com.demo.techassignment.Service.GlobalService;
 import com.demo.techassignment.Service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -37,6 +42,9 @@ public class UserServiceImp implements UserService {
     private final TokenRepository tokenRepository;
 
 
+    private final GlobalService globalService;
+
+
     private final AuthenticationManager authenticationManager;
 
 
@@ -49,10 +57,11 @@ public class UserServiceImp implements UserService {
     private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
 
-    public UserServiceImp(UserRepository userRepository, AccountRepository accountRepository, AuthenticationManager authenticationManager, TokenRepository tokenRepository, AuthenticationManager authenticationManager1, JwtTokenUtil jwtTokenUtil, MyUserDetailService userDetailsService) {
+    public UserServiceImp(UserRepository userRepository, AccountRepository accountRepository, AuthenticationManager authenticationManager, TokenRepository tokenRepository, GlobalService globalService, AuthenticationManager authenticationManager1, JwtTokenUtil jwtTokenUtil, MyUserDetailService userDetailsService) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
         this.tokenRepository = tokenRepository;
+        this.globalService = globalService;
         this.authenticationManager = authenticationManager1;
         this.jwtTokenUtil = jwtTokenUtil;
         this.userDetailsService = userDetailsService;
@@ -139,6 +148,16 @@ public class UserServiceImp implements UserService {
     }
 
     @Override
+    public Map<String, String> Logout() throws Exception {
+        try{
+            revokeAllTokenByUser(me());
+            return Map.of("msg","Logout successfully");
+        }catch (Exception e){
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    @Override
     public User me() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated()) {
@@ -177,6 +196,103 @@ public class UserServiceImp implements UserService {
         profile.put("accStatus",acc.getAccountStatus().toString());
 
         return profile;
+    }
+
+    @Override
+    public Map<String, Object> staffCreation(StaffCreationDTO staffCreationDTO) throws Exception {
+        try{
+            Map<String,String> errors = new HashMap<>();
+            Optional<User> existingContact = userRepository.findByContact(staffCreationDTO.getContact());
+            if (existingContact.isPresent()) {
+                errors.put("contact","This contact number is already in use.");
+            }
+
+            Optional<User> existingEmail = userRepository.findByEmail(staffCreationDTO.getEmail());
+            if (existingEmail.isPresent()) {
+                errors.put("email","This email address is already registered.");
+            }
+
+
+
+            Role role = Role.fromValue(staffCreationDTO.getRole());
+            String prefix = "";
+
+            switch (role){
+                case Role.STAFF -> {
+                    prefix = "ST";
+                }
+                case Role.ADMIN -> {
+                    prefix = "AD";
+                }
+                case Role.USER -> {
+                    errors.put("role","You cannot create User account");
+                }
+                case null ->{
+                    errors.put("role","Invalid Role");
+                }
+            }
+
+
+            if(!errors.isEmpty()){
+                return Map.of("errors", errors);
+            }
+
+            String staffId = String.format("%s%05d",prefix, globalService.getSequence("EMPLOYEE"));
+
+            User user = new User();
+            user.setName(staffCreationDTO.getName());
+            user.setEmail(staffCreationDTO.getEmail());
+            user.setUsername(staffId);
+            user.setContact(staffCreationDTO.getContact());
+            user.setPass(passwordEncoder.encode(staffCreationDTO.getPass()));
+            user.setRole(role);
+            user.setUserStatus(UserStatus.ACTIVE);
+
+            userRepository.save(user);
+
+            return Map.of("msg", Map.of("staffId",staffId));
+
+        }catch (Exception e){
+            throw new Exception(e.getMessage());
+        }
+    }
+
+    @Override
+    public String createDummyData() throws Exception {
+        return globalService.dummyData();
+    }
+
+    @Override
+    public Map<String, Object> editUser(EditUserDTO editUserDTO) throws Exception {
+        try{
+            User user = me();
+
+            Map<String,String> errors = new HashMap<>();
+            Optional<User> existingContact = userRepository.findByContact(editUserDTO.getContact());
+            if (existingContact.isPresent() && !existingContact.get().getUsername().equals(user.getUsername())) {
+                errors.put("contact","This contact number is already in use.");
+            }
+
+            Optional<User> existingEmail = userRepository.findByEmail(editUserDTO.getEmail());
+            if (existingEmail.isPresent() && !existingEmail.get().getUsername().equals(user.getUsername())) {
+                errors.put("email","This email address is already registered.");
+            }
+
+            if(!errors.isEmpty()){
+                return Map.of("errors",errors);
+            }
+
+            user.setName(editUserDTO.getName());
+            user.setContact(editUserDTO.getContact());
+            user.setEmail(editUserDTO.getEmail());
+            user.setPass(passwordEncoder.encode(editUserDTO.getPass()));
+
+            userRepository.save(user);
+
+            return Map.of("msg","Update successfully");
+        }catch (Exception e){
+            throw new Exception(e.getMessage());
+        }
     }
 
     private void CreateAccount(User user){
