@@ -9,11 +9,24 @@
 
 ## User Module
 
-- [x] Register
-  - [ ] Existing Username, email, contact
-- [ ] Login
-  - [ ] User status is Invalid
-- [ ] Logout
+#### Register
+
+- Auto create Account Also
+
+#### Login
+- will generate JWT Token
+
+#### User profile
+
+##### Edit user (USER)
+
+- Edit own profile
+
+##### Edit user (STAFF)
+
+- STAFF can edit USER only
+- ADMIN can edit STAFF and USER (Not SUPER ADMIN "admin" hardcoded)
+
 
 ## Transaction
 
@@ -42,12 +55,25 @@
 
 ### Manage Transaction
 
+#### Get transaction history
+
+- User will get own transaction list only, STAFF or ADMIN can select all or by other user id
+- Can filter by (transaction id, status, type, period, sort A - ASD, D -DSN by transaction date time, page)
+
 #### Transaction Cancellation by User
 
 - transaction id should exist and mandatory.
 - transaction status allow (4 - CANCELED) only
 - remarks are mandatory
 - can do cancellation for transaction status PENDING only.
+
+#### Transaction Approval/Reject by employee
+
+- transaction id should exist and mandatory.
+- transaction status allow (3 - COMPLETED, 4 - CANCELED) only
+- remarks are mandatory
+- can do cancellation for transaction status PENDING only.
+
 
 
 

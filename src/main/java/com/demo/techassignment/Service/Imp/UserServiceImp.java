@@ -8,7 +8,6 @@ import com.demo.techassignment.DTO.UserRegisterDTO;
 import com.demo.techassignment.Model.Account;
 import com.demo.techassignment.Model.Enum.AccStatus;
 import com.demo.techassignment.Model.Enum.Role;
-import com.demo.techassignment.Model.Enum.TrnStatus;
 import com.demo.techassignment.Model.Enum.UserStatus;
 import com.demo.techassignment.Model.Token;
 import com.demo.techassignment.Model.User;
@@ -19,8 +18,6 @@ import java.text.DecimalFormat;
 
 import com.demo.techassignment.Service.GlobalService;
 import com.demo.techassignment.Service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -32,7 +29,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -55,10 +51,10 @@ public class UserServiceImp implements UserService {
     private final MyUserDetailService userDetailsService;
 
 
-    private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
 
-    public UserServiceImp(UserRepository userRepository, AccountRepository accountRepository, AuthenticationManager authenticationManager, TokenRepository tokenRepository, GlobalService globalService, AuthenticationManager authenticationManager1, JwtTokenUtil jwtTokenUtil, MyUserDetailService userDetailsService) {
+    public UserServiceImp(UserRepository userRepository, AccountRepository accountRepository, TokenRepository tokenRepository, GlobalService globalService, AuthenticationManager authenticationManager1, JwtTokenUtil jwtTokenUtil, MyUserDetailService userDetailsService) {
         this.userRepository = userRepository;
         this.accountRepository = accountRepository;
         this.tokenRepository = tokenRepository;
@@ -224,18 +220,10 @@ public class UserServiceImp implements UserService {
             String prefix = "";
 
             switch (role){
-                case Role.STAFF -> {
-                    prefix = "ST";
-                }
-                case Role.ADMIN -> {
-                    prefix = "AD";
-                }
-                case Role.USER -> {
-                    errors.put("role","You cannot create User account");
-                }
-                case null ->{
-                    errors.put("role","Invalid Role");
-                }
+                case Role.STAFF -> prefix = "ST";
+                case Role.ADMIN -> prefix = "AD";
+                case Role.USER -> errors.put("role","You cannot create User account");
+                case null -> errors.put("role","Invalid Role");
             }
 
 
@@ -285,7 +273,7 @@ public class UserServiceImp implements UserService {
                 user = currUser;
             }else{
                 if(editUserDTO.getUsername() == null || editUserDTO.getUsername().isEmpty()){
-                    errors.put("email","Username is missing");
+                    errors.put("username","Username is missing");
                 }else {
                     Optional<User> findUser = userRepository.findByUsername(editUserDTO.getUsername());
                     if(findUser.isEmpty()){
@@ -313,7 +301,15 @@ public class UserServiceImp implements UserService {
                     role = Role.fromValue(editUserDTO.getRole());
                     if(role == null){
                         errors.put("role", "Invalid Role");
+                    }else if (user.getRole() == Role.USER){
+                        errors.put("role", "You cannot edit role for this user");
                     }
+                }
+            }
+
+            if (!editUserDTO.getPass().isEmpty()){
+                if (editUserDTO.getPass().matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$")){
+                    errors.put("pass","Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., @, #, $, %, &, etc.)");
                 }
             }
 
@@ -339,7 +335,11 @@ public class UserServiceImp implements UserService {
             user.setName(editUserDTO.getName());
             user.setContact(editUserDTO.getContact());
             user.setEmail(editUserDTO.getEmail());
-            user.setPass(passwordEncoder.encode(editUserDTO.getPass()));
+
+            if (!editUserDTO.getPass().isEmpty()){
+                user.setPass(passwordEncoder.encode(editUserDTO.getPass()));
+            }
+
             if (role != null){
                 user.setRole(role);
             }
@@ -357,16 +357,11 @@ public class UserServiceImp implements UserService {
 
     private void CreateAccount(User user){
         Account acc = new Account();
-        String newAccNo = "";
+        String newAccNo;
 
-        while (true){
+        do {
             newAccNo = acc.generateAccountNo();
-            if (accountRepository.findByAccountNo(newAccNo).isPresent()){
-                continue;
-            }else {
-                break;
-            }
-        }
+        } while (accountRepository.findByAccountNo(newAccNo).isPresent());
 
         acc.setUsername(user.getUsername());
         acc.setAccountNo(newAccNo);
@@ -388,9 +383,7 @@ public class UserServiceImp implements UserService {
     private void revokeAllTokenByUser(User user) {
         List<Token> validateTokenByUser = tokenRepository.findAllTokenByUsername(user.getUsername());
         if(!validateTokenByUser.isEmpty()){
-            validateTokenByUser.forEach(t->{
-                t.setLoggout(true);
-            });
+            validateTokenByUser.forEach(t-> t.setLoggout(true));
         }
 
         tokenRepository.saveAll(validateTokenByUser);
