@@ -21,6 +21,9 @@ public class StaffCreationDTO {
     @NotEmpty
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",message = "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (e.g., @, #, $, %, &, etc.)")
     private String pass;
+    @NotEmpty
+    @Pattern(regexp = "^\\d{6}(-?\\d{2})(-?\\d{4})$", message = "Invalid Id no")
+    private String idNo;
     @NotNull
     private Integer role;
 }

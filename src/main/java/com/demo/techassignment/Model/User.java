@@ -29,8 +29,10 @@ public class User {
     private String name;
 
     @Column(name = "email" ,nullable = false, unique = true)
-    @NonNull
     private String email;
+
+    @Column(name="idNo", nullable = false, unique = true)
+    private String idNo;
 
     @Column(name = "contact", nullable = false, unique = true)
     @NonNull

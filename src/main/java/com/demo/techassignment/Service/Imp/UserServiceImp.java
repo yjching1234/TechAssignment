@@ -81,6 +81,11 @@ public class UserServiceImp implements UserService {
                 errors.put("username","This username is already taken.");
             }
 
+            Optional<User> existingIdNo = userRepository.findByIdNo(userRegisterDTO.getIdNo());
+            if(existingIdNo.isPresent()){
+                errors.put("username","This Id no is already taken.");
+            }
+
             if (!errors.isEmpty()) {
                 return Map.of("errors",errors);
             }
@@ -92,6 +97,7 @@ public class UserServiceImp implements UserService {
             user.setContact(userRegisterDTO.getContact());
             user.setPass(passwordEncoder.encode(userRegisterDTO.getPass()));
             user.setRole(Role.USER);
+            user.setIdNo(userRegisterDTO.getIdNo());
             user.setUserStatus(UserStatus.ACTIVE);
 
 
@@ -178,6 +184,7 @@ public class UserServiceImp implements UserService {
         profile.put("email",user.getEmail());
         profile.put("Contact",user.getContact());
         profile.put("Role", user.getRole().toString());
+        profile.put("IdNo",user.getIdNo());
 
         if (user.getRole() == Role.USER){
             Account acc = accountRepository.findByUsername(user.getUsername()).orElseThrow();
@@ -206,6 +213,10 @@ public class UserServiceImp implements UserService {
                 errors.put("email","This email address is already registered.");
             }
 
+            Optional<User> existingIdNo = userRepository.findByIdNo(staffCreationDTO.getIdNo());
+            if(existingIdNo.isPresent()){
+                errors.put("username","This Id no is already taken.");
+            }
 
 
             Role role = Role.fromValue(staffCreationDTO.getRole());
@@ -232,6 +243,7 @@ public class UserServiceImp implements UserService {
             user.setContact(staffCreationDTO.getContact());
             user.setPass(passwordEncoder.encode(staffCreationDTO.getPass()));
             user.setRole(role);
+            user.setIdNo(staffCreationDTO.getIdNo());
             user.setUserStatus(UserStatus.ACTIVE);
 
             userRepository.save(user);
