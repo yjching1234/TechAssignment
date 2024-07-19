@@ -181,7 +181,13 @@ public class TransactionServiceImp implements TransactionService {
         TrnStatus trnStatus = TrnStatus.fromValue(manageTransactionDTO.getTrnStatus());
 
         if(findTrn.isEmpty()){
-            response.put("tarId","Invalid transaction Id");
+            response.put("tanId","Invalid transaction Id");
+        }
+
+        if(me.getRole() == Role.USER){
+            if(!findTrn.get().getUser().getUsername().equals(me.getUsername())){
+                response.put("tanId","Invalid transaction Id");
+            }
         }
 
         if(trnStatus == null){
