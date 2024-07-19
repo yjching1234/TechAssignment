@@ -1,9 +1,6 @@
 package com.demo.techassignment.Controller;
 
-import com.demo.techassignment.DTO.EditUserDTO;
-import com.demo.techassignment.DTO.StaffCreationDTO;
-import com.demo.techassignment.DTO.UserLoginDTO;
-import com.demo.techassignment.DTO.UserRegisterDTO;
+import com.demo.techassignment.DTO.*;
 import com.demo.techassignment.Service.GlobalService;
 import com.demo.techassignment.Service.UserService;
 import jakarta.validation.Valid;
@@ -37,9 +34,12 @@ public class UserController {
 //    }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody @Valid UserRegisterDTO userRegisterDTO){
+    public ResponseEntity<Object> register(@RequestBody @Valid UserRegisterDTO userRegisterDTO){
         try {
-            String response = userService.UserRegistartion(userRegisterDTO);
+            Map<String,Object> response = userService.UserRegistartion(userRegisterDTO);
+            if(response.containsKey("errors")){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
             return ResponseEntity.ok(response);
         }catch (Exception ex){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
@@ -96,6 +96,19 @@ public class UserController {
     ResponseEntity<Object> userUpdate(@RequestBody @Valid EditUserDTO editUserDTO){
         try {
             Map<String, Object> response = userService.editUser(editUserDTO);
+            if(response.containsKey("errors")){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+            return ResponseEntity.ok(response);
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("errors",e.getMessage()));
+        }
+    }
+
+    @PostMapping("/getUserInfo")
+    ResponseEntity<Object> getUserInfo(@RequestBody @Valid GetUserDto getUserDto){
+        try {
+            Map<String, Object> response = userService.getUserDetailByUsername(getUserDto);
             if(response.containsKey("errors")){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
             }

@@ -11,7 +11,7 @@ import java.util.Date;
 @Getter
 @Setter
 public class TrnHistoryDTO {
-    private Integer userId;
+    private String accNo;
     private String trnId;
     private Integer trnStatus;
     private Integer trnType;

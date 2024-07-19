@@ -45,6 +45,7 @@ public class SecurityConfiguration{
                     authorizeHttpRequest.requestMatchers("/api/transaction/manageAcc").hasAnyRole("ADMIN","STAFF");
                     authorizeHttpRequest.requestMatchers("/api/transaction/trnApproval", "/api/transaction/getTrnHis").hasAnyRole("USER","STAFF","ADMIN");
                     authorizeHttpRequest.requestMatchers("/api/transaction/**").hasRole("USER");
+                    authorizeHttpRequest.requestMatchers("/api/user/getUserInfo").hasAnyRole("ADMIN","STAFF");
                     authorizeHttpRequest.requestMatchers("/api/user/createStaff").hasRole("ADMIN");
                     authorizeHttpRequest.anyRequest().authenticated();
                 }

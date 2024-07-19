@@ -20,6 +20,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -58,8 +59,16 @@ public class TransactionServiceImp implements TransactionService {
             errors.put("accountTo","Target account is missing");
         }
 
-        if(transactionDTO.getAmount() <= 0){
-            errors.put("amount","Transaction amount cannot less then equal 0");
+        if(transactionDTO.getAmount() <= 1){
+            errors.put("amount","Transaction amount cannot less then equal 1");
+        }
+
+        if (BigDecimal.valueOf(transactionDTO.getAmount()).scale() > 2){
+            errors.put("amount", "Transaction amount cannot have more than two decimal places");
+        }
+
+        if(trnType == TrnType.DUITNOW && transactionDTO.getAmount() > 100000){
+            errors.put("trnType", "You cannot use this transaction type due to transaction amount greater than 100,000.00");
         }
 
         if(transactionDTO.getDescription().isEmpty()){
@@ -298,29 +307,32 @@ public class TransactionServiceImp implements TransactionService {
             }
 
 
+            String trnId = trnHistoryDTO.getTrnId();
+            String accNo = null;
+
+            if (user.getRole() != Role.USER && !trnHistoryDTO.getAccNo().isEmpty()){
+                if (accountRepository.findByAccountNo(trnHistoryDTO.getAccNo()).isPresent()){
+                    accNo = trnHistoryDTO.getAccNo();
+                } else {
+                    errors.put("accNo","Invalid Account no");
+                }
+            } else if (user.getRole() == Role.USER) {
+                Account acc = accountRepository.findByUsername(user.getUsername()).orElseThrow();
+                accNo = acc.getAccountNo();
+            }
 
             if (!errors.isEmpty()) {
                 return Map.of("errors", errors);
             }
 
 
-            Integer userId = user.getId();
-            if (user.getRole() != Role.USER){
-                if (trnHistoryDTO.getUserId() != 0){
-                    userId = trnHistoryDTO.getUserId();
-                }else {
-                    userId = null;
-                }
-            }
-            String trnId = trnHistoryDTO.getTrnId();
-
             Page<Transaction> findTrn = transactionReposiotry.findTransactionByFilters(
-                    userId,
                     trnId,
                     trnStatus,
                     trnType,
                     dateFrom,
                     dateTo,
+                    accNo,
                     pageRequest);
 
             List<RtnTrnHisDTO> trn = findTrn.getContent().stream().map(t -> {

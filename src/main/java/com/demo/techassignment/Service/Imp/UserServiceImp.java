@@ -1,10 +1,7 @@
 package com.demo.techassignment.Service.Imp;
 
 import com.demo.techassignment.Configure.JwtTokenUtil;
-import com.demo.techassignment.DTO.EditUserDTO;
-import com.demo.techassignment.DTO.StaffCreationDTO;
-import com.demo.techassignment.DTO.UserLoginDTO;
-import com.demo.techassignment.DTO.UserRegisterDTO;
+import com.demo.techassignment.DTO.*;
 import com.demo.techassignment.Model.Account;
 import com.demo.techassignment.Model.Enum.AccStatus;
 import com.demo.techassignment.Model.Enum.Role;
@@ -66,31 +63,26 @@ public class UserServiceImp implements UserService {
 
     @Override
     @Transactional(rollbackFor = {Exception.class})
-    public String UserRegistartion(UserRegisterDTO userRegisterDTO) throws Exception {
+    public Map<String, Object> UserRegistartion(UserRegisterDTO userRegisterDTO) throws Exception {
         try{
-            List<String> errors = new ArrayList<>();
+            Map<String,String> errors = new HashMap<>();
             Optional<User> existingContact = userRepository.findByContact(userRegisterDTO.getContact());
             if (existingContact.isPresent()) {
-                errors.add("This contact number is already in use.");
+                errors.put("contact","This contact number is already in use.");
             }
 
             Optional<User> existingEmail = userRepository.findByEmail(userRegisterDTO.getEmail());
             if (existingEmail.isPresent()) {
-                errors.add("This email address is already registered.");
+                errors.put("email","This email address is already registered.");
             }
 
             Optional<User> existingUsername = userRepository.findByUsername(userRegisterDTO.getUsername());
             if (existingUsername.isPresent()) {
-                errors.add("This username is already taken.");
+                errors.put("username","This username is already taken.");
             }
 
             if (!errors.isEmpty()) {
-                // Build error message
-                StringBuilder errorMessage = new StringBuilder("Registration failed. \n");
-                for (String error : errors) {
-                    errorMessage.append(error).append("\n");
-                }
-                throw new Exception(errorMessage.toString().trim());
+                return Map.of("errors",errors);
             }
 
             User user = new User();
@@ -108,7 +100,7 @@ public class UserServiceImp implements UserService {
 
             CreateAccount(user);
 
-            return "Success";
+            return Map.of("msg","Register successfully");
         }catch (Exception ex){
             throw new Exception(ex.getMessage());
         }
@@ -352,6 +344,44 @@ public class UserServiceImp implements UserService {
             return Map.of("msg","Update successfully");
         }catch (Exception e){
             throw new Exception(e.getMessage());
+        }
+    }
+
+    @Override
+    public Map<String, Object> getUserDetailByUsername(GetUserDto getUserDto) throws Exception {
+        try{
+            Optional<User> findUser = userRepository.findByUsername(getUserDto.getUsername());
+            if(findUser.isEmpty()){
+                return Map.of("errors","Invalid Username");
+            }
+
+            User user = findUser.get();
+
+
+            DecimalFormat df = new DecimalFormat("#,##0.00");
+
+            Map<String,String> profile = new HashMap<>();
+            profile.put("name",user.getName());
+            profile.put("username",user.getUsername());
+            profile.put("email",user.getEmail());
+            profile.put("Contact",user.getContact());
+            profile.put("Role", user.getRole().toString());
+
+            if (user.getRole() == Role.USER){
+                Account acc = accountRepository.findByUsername(user.getUsername()).orElseThrow();
+                profile.put("accountNo",acc.getAccountNo());
+                profile.put("totalBalance", df.format(acc.getBalance() + acc.getTempBalance()));
+                profile.put("availableBalance", df.format(acc.getBalance()));
+                profile.put("tempBalance", df.format(acc.getTempBalance()));
+                profile.put("accStatus",acc.getAccountStatus().toString());
+            }
+
+
+            return Map.of("data",profile);
+
+
+        }catch (Exception e){
+            throw  new Exception(e.getMessage());
         }
     }
 

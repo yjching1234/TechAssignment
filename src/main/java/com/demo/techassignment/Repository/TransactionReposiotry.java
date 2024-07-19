@@ -20,19 +20,19 @@ public interface TransactionReposiotry extends JpaRepository<Transaction,Integer
 
     @Query("""
     SELECT t FROM Transaction t WHERE
-    (:userId IS NULL or t.user.id = :userId)
-    AND (:trnId IS NULL OR t.tranId = :trnId)
+    (:accNo IS NULL or (t.accountTo = :accNo or t.accountFrom = :accNo))
+    AND (:trnId IS NULL OR t.tranId like concat('%',:trnId,'%') )
     AND (:trnStatus IS NULL OR t.transactionStatus = :trnStatus)
     AND (:trnType IS NULL OR t.transactionType = :trnType)
     AND (:dateFrom IS NULL OR t.transactionDateTime >= :dateFrom)
     AND (:dateTo IS NULL OR t.transactionDateTime <= :dateTo)
     """)
     Page<Transaction> findTransactionByFilters(
-            @Param("userId") Integer userId,
             @Param("trnId") String trnId,
             @Param("trnStatus") TrnStatus trnStatus,
             @Param("trnType") TrnType trnType,
             @Param("dateFrom") LocalDateTime dateFrom,
             @Param("dateTo") LocalDateTime dateTo,
+            @Param("accNo") String accNo,
             Pageable pageable);
 }
